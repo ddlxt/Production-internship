@@ -42,7 +42,7 @@ def save_chat_history_route():
 
         log_file_path = os.path.join(user_log_dir, 'chat_secrets.log')  # 使用.log后缀
 
-        # 以追加模式写入，每个对话片段后加个分隔符
+        # 以追加模式写入，每个对话片段后加一个分隔符
         with open(log_file_path, 'a', encoding='utf-8') as f:
             f.write(chat_html_content)  # chat_html_content 已经包含了时间戳和包裹的 div
             f.write("\n<hr style='border:0; border-top: 1px dashed #ccc; margin: 20px 0;'>\n")
