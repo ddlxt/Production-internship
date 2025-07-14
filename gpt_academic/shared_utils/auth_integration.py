@@ -6,6 +6,8 @@ auth_integration.py - GPT Academic与SE Backend的登录集成模块
 import json
 import secrets
 import time
+
+import pymysql
 import requests
 from loguru import logger
 from typing import Tuple, Optional, Dict, Any
