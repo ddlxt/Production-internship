@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from dataclasses import replace
 from pathlib import Path
 import argparse
@@ -96,6 +97,9 @@ def is_subjective_question(question):
     subjective_keywords = ["简答", "讨论", "分析", "描述", "论述", "说明"]
     return any(keyword in question for keyword in subjective_keywords)
 
+def remove_question_prefix(text):
+    """去除题干、正确答案和学生答案中的题号前缀，如(1)，(2)等"""
+    return re.sub(r"^\(\d+\)", "", text)  # 使用正则表达式去除题号
 
 def call_ai_grader(question_content, answer_content, student_submission_content):
     """
@@ -231,14 +235,14 @@ def process_grading_task(homework_path_str: str):
         for item in result["per_question"]:
             if item["score"] < 60:
                 idx = item["question"] - 1
-                qtxt = questions[idx] if idx < len(questions) else ""
+                qtxt = remove_question_prefix(questions[idx]) if idx < len(questions) else ""
                 # 更新全班统计
                 wrong_stats[qtxt] = wrong_stats.get(qtxt, 0) + 1
                 wrong_list.append({
                     "question_no": item["question"],
                     "question_text": qtxt,
-                    "correct_answer": answers[idx] if idx < len(answers) else "",
-                    "student_answer": lines[idx] if idx < len(lines) else "",
+                    "correct_answer": remove_question_prefix(answers[idx]) if idx < len(answers) else "",
+                    "student_answer": remove_question_prefix(answers[idx]) if idx < len(lines) else "",
                     "score": item["score"]
                 })
         # 写该学生错题文件
@@ -247,7 +251,7 @@ def process_grading_task(homework_path_str: str):
             with open(wfile, "w", encoding="utf-8") as wf:
                 json.dump(wrong_list, wf, ensure_ascii=False, indent=4)
 
-    # 写全班错题统计 summary.json，文件名为 homeowrk_path_str 格式化
+    # 写全班错题统计 summary.json，文件名为homework_path_str格式化
     summary_filename = homework_path_str.replace('/', '_') + ".json"
     summary_path = mistake_dir / summary_filename
     with open(summary_path, "w", encoding="utf-8") as sf:
