@@ -1,9 +1,12 @@
 import os
 import json
+from dataclasses import replace
 from pathlib import Path
 import argparse
 import mysql.connector # 新增：用于连接 MySQL
 from openai import OpenAI
+import difflib
+import random
 
 # --- 配置 ---
 MOCK_AI = False  # True 会模拟 AI 返回，False 会尝试调用真实 API
@@ -77,222 +80,181 @@ def transform_filename_to_email(filename_stem: str) -> str:
 
     return f"{part1}@{part2}.{part3}"
 
+def compute_similarity(answer1, answer2):
+    """
+    计算两个文本答案的相似度，使用difflib来计算。
+    返回一个0-100的相似度分数。
+    """
+    sequence = difflib.SequenceMatcher(None, answer1, answer2)
+    return sequence.ratio() * 100  # 计算相似度百分比
+
+def is_subjective_question(question):
+    """
+    判断题目是否为主观题。通过检查是否包含特定关键词来判定。
+    关键词如: '简答', '讨论', '分析', '描述' 等。
+    """
+    subjective_keywords = ["简答", "讨论", "分析", "描述", "论述", "说明"]
+    return any(keyword in question for keyword in subjective_keywords)
+
 
 def call_ai_grader(question_content, answer_content, student_submission_content):
+    """
+    调用AI进行逐题评分，并在本地按题号分点校验，每题返回独立评分和评语。
+    返回结构包含 overall_score, ai_comment, 以及 per_question 列表。
+    overall_score 由本地 per_question 平均计算获得，以保证与 per_question 一致。
+    """
+    # 1. 本地逐题校验并生成子评分与评语
+    correct_answers = answer_content.splitlines()
+    student_text = "\n".join(item.get("text", "") for item in student_submission_content if item.get("type") == "text")
+    student_answers = student_text.splitlines()
+
+    per_question = []
+    for i, correct in enumerate(correct_answers):
+        stu_ans = student_answers[i] if i < len(student_answers) else ""
+        score_i = 100 if stu_ans.strip() == correct.strip() else 0
+        comment_i = (
+            "答案正确。" if score_i == 100 else f"你的答案'{stu_ans}'错误，正确答案是'{correct}'。"
+        )
+        per_question.append({
+            "question": i + 1,
+            "score": score_i,
+            "comment": comment_i
+        })
+
+    # 2. 对主观题的批改：计算文本相似度并结合AI评判
+    subjective_question_threshold = 50  # 设置主观题的相似度阈值，低于此值视为错误
+    for i, correct in enumerate(correct_answers):
+        question = question_content.splitlines()[i]
+
+        if is_subjective_question(question):  # 判断是否为主观题
+            # 计算学生答案与正确答案的相似度
+            similarity_score = compute_similarity(correct, student_answers[i] if i < len(student_answers) else "")
+            # 将相似度映射到评分范围
+            score_i = min(100, similarity_score)
+            comment_i = f"相似度评分：{score_i}。"
+            # 如果相似度很低，AI进行补充评判
+            if score_i < subjective_question_threshold:
+                comment_i += "回答与标准答案相似度较低，可能没有准确回答问题。"
+
+            per_question[i]["score"] = score_i
+            per_question[i]["comment"] = comment_i
+
+    # 3. 调用AI整体点评（保留供参考）
+    ai_comment = ""
     if MOCK_AI:
-        import random
-        score = random.randint(60, 100)
-        comment = f"模拟评语：作业完成度较好，得分 {score}。"
-        if any("error" in str(item.get("text", "")).lower() for item in student_submission_content if
-               item["type"] == "text"):
-            comment = "模拟评语：学生提交的文件似乎存在问题或读取错误。"
-            score = 0
-        return {"score": score, "comment": comment}
-    try:
-        # Initialize the OpenAI client
-        # The API key is typically read from the OPENAI_API_KEY environment variable by default.
-        # If you are using a redirect/proxy, you might need to set the base_url.
-        # Example for your redirect:
-        client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-            base_url="https://api.mctools.online/v1"
-        )
+        ai_comment = "模拟评语：作答基本正确，表达清晰。"
+    else:
+        try:
+            client = OpenAI(
+                api_key=os.environ.get("OPENAI_API_KEY"),
+                base_url="https://api.mctools.online/v1"
+            )
+            system_prompt = (
+                "You are an AI assistant tasked with grading student homework."
+                " Provide a general feedback comment (in Chinese) on the student's overall performance."
+                " You will be given the full assignment questions, standard answers, and student responses."
+                " Do not return any score. Just return a single string of comment."
+            )
+            user_prompt = (
+                f"题目：\n{question_content}\n\n标准答案：\n{answer_content}\n\n学生作答：\n{student_text}"
+            )
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=300
+            )
+            ai_comment = response.choices[0].message.content.strip()
+        except Exception as e:
+            ai_comment = f"AI调用失败: {e}"
 
-        # Construct the messages for the API call
-        # The student_submission_content_list is already in the format for multi-modal input if needed.
-        # For now, assuming student_submission_content_list contains text items as per previous script logic.
-        # We will concatenate student text submissions for this example.
-        # For image support, the content list needs to be passed directly if the model supports it (e.g., gpt-4o)
+    # 重新计算 overall_score 为本地平均分
+    total = sum(item['score'] for item in per_question)
+    overall_score = round(total / len(per_question), 1) if per_question else 0
 
-        student_text_parts = []
-        # student_image_parts = [] # For future image handling
-
-        for item in student_submission_content:
-            if item["type"] == "text":
-                student_text_parts.append(item["text"])
-            # elif item["type"] == "image_url": # Prepare for image handling
-            #     student_image_parts.append(item)
-
-        full_student_submission_text = "\n".join(student_text_parts)
-
-        # Define the prompt for the AI
-        # We instruct the AI to return a JSON object with "score" and "comment"
-        system_prompt = """
-            You are an AI assistant tasked with grading student homework.
-            You will be given the "Assignment Question", the "Standard Answer", and the "Student's Submission".
-            Your goal is to evaluate the student's submission based on the standard answer and the question.
-            Provide a score out of 100 and a brief comment explaining the score.
-            Your response MUST be a JSON object with two keys: "score" (integer) and "comment" (string).
-            For example: {"score": 85, "comment": "The student correctly identified the main points but missed some details."}
-            """
-
-        user_prompt_content = f"""
-            --- Assignment Question ---
-            {question_content}
-
-            --- Standard Answer ---
-            {answer_content}
-
-            --- Student's Submission ---
-            {full_student_submission_text}
-            """
-
-        # If you want to include images directly with a model like gpt-4o:
-        # user_message_content_parts = [
-        #     {"type": "text", "text": f"--- Assignment Question ---\n{question_content}"},
-        #     {"type": "text", "text": f"--- Standard Answer ---\n{answer_content}"},
-        #     {"type": "text", "text": "--- Student's Submission ---"}
-        # ]
-        # user_message_content_parts.extend(student_submission_content_list) # This would pass text and images
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt_content}  # For text-only models
-            # For multi-modal models like gpt-4o, the 'content' for the user role can be a list:
-            # {"role": "user", "content": user_message_content_parts}
-        ]
-
-        print("🤖 Calling OpenAI API for grading...")
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Or use "gpt-4o" for better reasoning and multi-modal capabilities
-            messages=messages,
-            response_format={"type": "json_object"},  # Request JSON output
-            temperature=0.2,  # Lower temperature for more deterministic grading
-            max_tokens=500  # Adjust as needed for expected comment length
-        )
-
-        # Extract the response
-        if response.choices and response.choices[0].message and response.choices[0].message.content:
-            ai_response_content = response.choices[0].message.content
-            print(f"✅ AI Response (raw): {ai_response_content}")
-            try:
-                # Parse the JSON response
-                grading_result = json.loads(ai_response_content)
-                if "score" in grading_result and "comment" in grading_result:
-                    return {
-                        "score": int(grading_result["score"]),
-                        "comment": str(grading_result["comment"])
-                    }
-                else:
-                    print("❌ AI response JSON does not contain 'score' or 'comment' keys.")
-                    return {"score": -1, "comment": "Error: AI response format incorrect. Missing score/comment."}
-            except json.JSONDecodeError:
-                print(f"❌ Error decoding AI response JSON: {ai_response_content}")
-                return {"score": -1, "comment": f"Error: AI response was not valid JSON. Raw: {ai_response_content}"}
-        else:
-            print("❌ No valid response content from AI.")
-            return {"score": -1, "comment": "Error: No valid response from AI."}
-
-    except Exception as e:
-        print(f"❌ An error occurred while calling OpenAI API: {e}")
-        return {"score": -1, "comment": f"Error during AI API call: {e}"}
-
+    return {
+        "overall_score": overall_score,
+        "ai_comment": ai_comment,
+        "per_question": per_question
+    }
 
 def process_grading_task(homework_path_str: str):
-    """主批改流程函数，增加了数据库回填。"""
-    base_path = Path("courses/data")  # 项目的根数据路径
-    homework_full_path = base_path / homework_path_str  # 作业的完整路径
+    """主批改流程，回填数据库，保存学生错题并统计全班错题汇总到命名为homework_path_str的summary.json"""
+    base_path = Path("courses/data")
+    hw_path = base_path / homework_path_str
 
-    # 1. 解析 course_id 和 assign_no (作业编号)
-    try:
-        path_parts = homework_path_str.split('/')
-        if len(path_parts) < 3 or path_parts[-2] != 'homework':
-            raise ValueError(
-                f"提供的作业路径格式不正确: '{homework_path_str}'。预期格式: 'course_id/homework/assign_no'")
-        current_course_id = path_parts[0]
-        current_assign_no = path_parts[-1]
-    except Exception as e:
-        print(f"❌ 错误：无法从路径 '{homework_path_str}' 解析课程ID和作业编号。{e}")
-        return
+    # 解析 course_id, assign_no
+    parts = homework_path_str.split('/')
+    course_id, assign_no = parts[0], parts[-1]
 
-    print(f"批改任务启动: 课程='{current_course_id}', 作业编号='{current_assign_no}'")
+    # 目录准备
+    comment_dir = hw_path / "comment"
+    mistake_dir = hw_path / "mistake"
+    comment_dir.mkdir(parents=True, exist_ok=True)
+    mistake_dir.mkdir(parents=True, exist_ok=True)
 
-    # 定义输入和输出路径
-    question_file = homework_full_path / "question.txt"
-    answer_file = homework_full_path / "answer.txt"
-    output_dir = homework_full_path / "comment"
-    try:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        print(f"✅ 输出目录 '{output_dir}' 已确保存在。")  # 新增日志，方便确认
-    except OSError as e:
-        print(f"❌ 创建目录 '{output_dir}' 失败: {e}")
+    # 读题干、答案
+    questions = (hw_path / "question.txt").read_text(encoding="utf-8").splitlines()
+    answers   = (hw_path / "answer.txt").read_text(encoding="utf-8").splitlines()
 
-    db_conn = None
-    db_config = None # 在 try 块外部先声明
-    try:
-        db_config = load_db_config()
-        db_conn = mysql.connector.connect(**db_config)
-    except mysql.connector.Error as e:
-        print(f"❌ 严重错误：无法连接到MySQL数据库 (主机: {db_config.get('host') if db_config else '未知'}, 数据库: {db_config.get('database') if db_config else '未知'})。错误: {e}")
-        return
-    except Exception as e: # 捕获 load_db_config 可能抛出的其他异常
-        print(f"❌ 严重错误：数据库配置或连接失败。错误: {e}")
-        return
+    # 数据库连接
+    db_conn = mysql.connector.connect(**load_db_config())
 
-    try:
-        question_content = question_file.read_text(encoding='utf-8')
-        answer_content = answer_file.read_text(encoding='utf-8')
-    except FileNotFoundError as e:
-        print(f"❌ 错误：缺少题目或答案文件: {e}")
-        if db_conn: db_conn.close()
-        return
+    # 全班错题统计
+    wrong_stats: dict[str,int] = {}
 
-    for submission_file in homework_full_path.iterdir():
-        if submission_file.is_dir() or submission_file.name in ["question.txt",
-                                                                "answer.txt"] or submission_file.suffix == '.json':
+    for sub in hw_path.iterdir():
+        if not sub.is_file() or sub.suffix == ".json" or sub.name in ("question.txt", "answer.txt"):
             continue
+        sid = sub.stem
+        email = transform_filename_to_email(sid)
 
-        student_id_from_filename = submission_file.stem  # 文件名（不含扩展名）
-        student_email = transform_filename_to_email(student_id_from_filename)
-        output_file_path = output_dir / f"{student_id_from_filename}.json"  # AI评语的JSON文件名仍用原文件名
+        text = sub.read_text(encoding="utf-8")
+        result = call_ai_grader("\n".join(questions), "\n".join(answers), [{"type":"text","text":text}])
 
-        # 幂等性：如果JSON评论文件已存在，则跳过AI批改和数据库写入 (或根据需要调整逻辑)
-        if output_file_path.exists():
-            print(f"⏭️ 作业 '{submission_file.name}' 的JSON评语已存在，跳过AI批改。")
-            # 可选：即使JSON存在，也检查数据库并更新（如果需要）
-            # try:
-            #     with open(output_file_path, 'r', encoding='utf-8') as f:
-            #         existing_result = json.load(f)
-            #     save_grade_to_db(db_conn, current_course_id, current_assign_no, student_email,
-            #                      existing_result.get('score'), existing_result.get('comment'))
-            # except Exception as e:
-            #     print(f"读取或保存已存在JSON到数据库时出错 {student_email}: {e}")
-            continue
-
-        print(f"⚙️ 正在处理学生 '{student_email}' (文件: {submission_file.name})...")
-
-        student_content_list = []
-        try:
-            text_content = submission_file.read_text(encoding='utf-8')
-            student_content_list.append({"type": "text", "text": text_content})
-        except Exception as e:
-            print(f"❌ 读取学生提交文件 '{submission_file.name}' 失败: {e}")
-            student_content_list.append({"type": "text", "text": f"Error reading file: {e}"})  # 记录错误信息
-
-        ai_result = call_ai_grader(question_content, answer_content, student_content_list)
-        score = ai_result.get('score')
-        comment = ai_result.get('comment')
-
-        try:
-            with open(output_file_path, 'w', encoding='utf-8') as f:
-                json.dump(ai_result, f, ensure_ascii=False, indent=4)
-            print(f"   📄 AI评语已保存为JSON: {output_file_path.name}")
-        except Exception as e:
-            print(f"❌ 保存AI评语JSON文件失败 ({student_email}): {e}")
-            # 即使JSON保存失败，也可能希望将AI结果存入数据库（如果AI调用成功）
+        # 保存评分结果 JSON
+        out_path = comment_dir / f"{sid}.json"
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=4)
 
         # 回填数据库
-        if score is not None and comment is not None:  # 确保有有效评分结果
-            save_grade_to_db(db_conn, current_course_id, current_assign_no, student_email, score, comment)
-            print(
-                f"   💾 -> MySQL数据库 (课程: {current_course_id}, 作业: {current_assign_no}, 学生: {student_email}, 分数: {score})")
-        else:
-            print(f"   ⚠️ 未获取到有效的AI评分和评语，不写入数据库 ({student_email})")
+        ov = result["overall_score"]
+        cm = result["ai_comment"]
+        save_grade_to_db(db_conn, course_id, assign_no, email, ov, cm)
 
-    if db_conn and db_conn.is_connected():
-        db_conn.close()
-    print(f"✅ 课程 '{current_course_id}', 作业 '{current_assign_no}' 处理完毕。")
+        # 收集该学生错题
+        lines = text.splitlines()
+        wrong_list = []
+        for item in result["per_question"]:
+            if item["score"] < 60:
+                idx = item["question"] - 1
+                qtxt = questions[idx] if idx < len(questions) else ""
+                # 更新全班统计
+                wrong_stats[qtxt] = wrong_stats.get(qtxt, 0) + 1
+                wrong_list.append({
+                    "question_no": item["question"],
+                    "question_text": qtxt,
+                    "correct_answer": answers[idx] if idx < len(answers) else "",
+                    "student_answer": lines[idx] if idx < len(lines) else "",
+                    "score": item["score"]
+                })
+        # 写该学生错题文件
+        if wrong_list:
+            wfile = mistake_dir / f"{sid}.json"
+            with open(wfile, "w", encoding="utf-8") as wf:
+                json.dump(wrong_list, wf, ensure_ascii=False, indent=4)
 
+    # 写全班错题统计 summary.json，文件名为 homeowrk_path_str 格式化
+    summary_filename = homework_path_str.replace('/', '_') + ".json"
+    summary_path = mistake_dir / summary_filename
+    with open(summary_path, "w", encoding="utf-8") as sf:
+        json.dump(wrong_stats, sf, ensure_ascii=False, indent=4)
+
+    db_conn.close()
+    print(f"✅ 批改完成：{course_id}/{assign_no}，已生成 {summary_filename}")
 
 # --- 主程序入口 (与之前版本类似，增加了数据库初始化调用) ---
 if __name__ == '__main__':
