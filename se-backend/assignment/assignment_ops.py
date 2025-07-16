@@ -3,6 +3,7 @@ import os
 from flask import jsonify, g, request, current_app
 
 from .grading_script import process_grading_task
+from .generate_questions import generate_questions_from_json, save_questions_and_answers
 from login.auth import student_required, teacher_required
 from login.db import get_db_connection
 from .utils import ensure_dir, get_course_str_id, parse_course_id, normalize_course_id, sanitize_email_for_filename
@@ -736,7 +737,7 @@ def get_student_assignment_detail_api(assignment_id):
 
 @student_required
 def submit_assignment_rest_api(assignment_id):
-    """学生通过REST风格URL提交作业
+    """学生通过REST风格URL提交作业（允许覆盖同一个文件）
     
     URL格式: /api/student/assignment/{assignment_id}/submit
     assignment_id格式: {course_id}_hw_{assign_no}，例如: rg_01_hw_1
@@ -785,10 +786,6 @@ def submit_assignment_rest_api(assignment_id):
             filename = sanitize_email_for_filename(student_email) + '.txt'
             file_path = os.path.join(homework_dir, filename)
             
-            # 检查是否已经提交过
-            if os.path.exists(file_path):
-                return jsonify({"message": "请勿重复提交"}), 400
-            
             # 保存作业内容到文件系统
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:
@@ -825,3 +822,243 @@ def submit_assignment_rest_api(assignment_id):
     finally:
         conn.close()
 
+
+@student_required
+def format_wrong_display_api(assignment_id):
+    """
+    接口：格式化显示某学生错题 JSON 的文本内容
+    POST 请求体:
+    {
+        "json_path": "courses/data/rg_01/homework/1/mistake/2911247775_qq_com.json"
+    }
+    返回：
+    {
+        "text": "第1题：...\n正确答案：...\n你的答案：...\n\n..."
+    }
+    """
+    student_email = g.user["email"]
+
+    # 解析 assignment_id
+    try:
+        parts = assignment_id.split('_hw_')
+        if len(parts) != 2:
+            return jsonify({"message": "作业ID格式无效"}), 400
+        course_id = parts[0]
+        assign_no = int(parts[1])
+    except (ValueError, IndexError):
+        return jsonify({"message": "作业ID格式无效"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 验证学生参与课程
+            cur.execute("""
+                        SELECT 1
+                        FROM student_course
+                        WHERE useremail = %s
+                          AND course_id = %s
+                        """, (student_email, course_id))
+            if not cur.fetchone():
+                return jsonify({"message": "无权访问该作业"}), 403
+
+            # 查询作业基本信息
+            cur.execute("SELECT title, description, due_date FROM assignment WHERE course_id=%s AND assign_no=%s",
+                        (course_id, assign_no))
+            meta = cur.fetchone()
+            if not meta:
+                return jsonify({"message": "作业不存在"}), 404
+
+            # 检查文件系统中的提交状态
+            base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "courses", "data")
+            mistake_dir = os.path.join(base_dir, course_id, "homework", str(assign_no), "mistake")
+            filename = sanitize_email_for_filename(student_email) + '.json'
+            file_path = os.path.join(mistake_dir, filename)
+
+            submission_info = None
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+
+                    # 格式化输出错题
+                    formatted = ""
+                    for idx, item in enumerate(json_data, 1):
+                        q_no = item.get("question_no", idx)
+                        q_text = item.get("question_text", "")
+                        correct = item.get("correct_answer", "")
+                        student = item.get("student_answer", "")
+                        formatted += f"第{q_no}题：{q_text}\n正确答案：{correct}\n你的答案：{student}\n\n"
+
+                    submission_info = {"content": formatted}
+                except Exception as e:
+                    submission_info = {"content": f"错题读取失败: {str(e)}"}
+
+            return jsonify({
+                "data": submission_info
+            }), 200
+    finally:
+        conn.close()
+@student_required
+def generate_assignment_api(assignment_id):
+    """学生生成相似作业题目和参考答案 API
+
+    请求体格式:
+    {
+        "useremail": "useremail",
+        "course_id": "rg_01",
+        "assign_no": 1
+    }
+
+    Returns:
+        成功: 200 OK, {"message": "作业生成成功"}
+        失败: 400 错误信息
+    """
+    data = request.get_json(silent=True) or {}
+    useremail = data.get("useremail")
+
+    try:
+        parts = assignment_id.split('_hw_')
+        if len(parts) != 2:
+            return jsonify({"message": "作业ID格式无效"}), 400
+        course_id = parts[0]
+        assign_no = int(parts[1])
+    except (ValueError, IndexError):
+        return jsonify({"message": "作业ID格式无效"}), 400
+
+    base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "courses", "data")
+    mistake_dir = os.path.join(base_dir, course_id, "homework", str(assign_no), "mistake")
+    filename = sanitize_email_for_filename(useremail) + '.json'
+    file_path = os.path.join(mistake_dir, filename)
+
+    if not file_path or not course_id or not assign_no:
+        return jsonify({"message": "缺少必要参数"}), 400
+
+    # 生成题目和参考答案
+    questions, answers = generate_questions_from_json(file_path)
+
+    if not questions or not answers:
+        return jsonify({"message": "生成作业题目和答案失败"}), 400
+
+    if questions and answers:
+        # 保存题目和参考答案
+        save_questions_and_answers(course_id, assign_no, questions, answers, useremail)
+
+    return jsonify({"message": "作业生成成功"}), 200
+
+@student_required
+def relative_display_api(assignment_id):
+    """
+    接口：格式化显示某学生相似问题的文本内容
+    """
+    student_email = g.user["email"]
+
+    # 解析 assignment_id
+    try:
+        parts = assignment_id.split('_hw_')
+        if len(parts) != 2:
+            return jsonify({"message": "作业ID格式无效"}), 400
+        course_id = parts[0]
+        assign_no = int(parts[1])
+    except (ValueError, IndexError):
+        return jsonify({"message": "作业ID格式无效"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 验证学生参与课程
+            cur.execute("""
+                        SELECT 1
+                        FROM student_course
+                        WHERE useremail = %s
+                          AND course_id = %s
+                        """, (student_email, course_id))
+            if not cur.fetchone():
+                return jsonify({"message": "无权访问该作业"}), 403
+
+            # 查询作业基本信息
+            cur.execute("SELECT title, description, due_date FROM assignment WHERE course_id=%s AND assign_no=%s",
+                        (course_id, assign_no))
+            meta = cur.fetchone()
+            if not meta:
+                return jsonify({"message": "作业不存在"}), 404
+
+            # 检查文件系统中的提交状态
+            base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "courses", "data")
+            mistake_dir = os.path.join(base_dir, course_id, "homework", str(assign_no), "relative")
+            filename = sanitize_email_for_filename(student_email) + '_question.txt'
+            file_path = os.path.join(mistake_dir, filename)
+
+            relative_info = None
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    relative_info = {"content": content}
+                    print("返回相似题内容:", relative_info)
+                except Exception as e:
+                    relative_info = {"content": f"相似问题读取失败: {str(e)}"}
+
+            return jsonify({
+                "relative": relative_info
+            }), 200
+    finally:
+        conn.close()
+
+@student_required
+def answer_display_api(assignment_id):
+    """
+    接口：格式化显示某学生相似问题的答案内容
+    """
+    student_email = g.user["email"]
+
+    # 解析 assignment_id
+    try:
+        parts = assignment_id.split('_hw_')
+        if len(parts) != 2:
+            return jsonify({"message": "作业ID格式无效"}), 400
+        course_id = parts[0]
+        assign_no = int(parts[1])
+    except (ValueError, IndexError):
+        return jsonify({"message": "作业ID格式无效"}), 400
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 验证学生参与课程
+            cur.execute("""
+                        SELECT 1
+                        FROM student_course
+                        WHERE useremail = %s
+                          AND course_id = %s
+                        """, (student_email, course_id))
+            if not cur.fetchone():
+                return jsonify({"message": "无权访问该作业"}), 403
+
+            # 查询作业基本信息
+            cur.execute("SELECT title, description, due_date FROM assignment WHERE course_id=%s AND assign_no=%s",
+                        (course_id, assign_no))
+            meta = cur.fetchone()
+            if not meta:
+                return jsonify({"message": "作业不存在"}), 404
+
+            # 检查文件系统中的提交状态
+            base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "courses", "data")
+            mistake_dir = os.path.join(base_dir, course_id, "homework", str(assign_no), "relative")
+            filename = sanitize_email_for_filename(student_email) + '_answer.txt'
+            file_path = os.path.join(mistake_dir, filename)
+
+            answer_info = None
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    answer_info = {"content": content}
+                    print("返回相似题答案:", answer_info)
+                except Exception as e:
+                    answer_info = {"content": f"相似问题答案读取失败: {str(e)}"}
+
+            return jsonify({
+                "answer": answer_info
+            }), 200
+    finally:
+        conn.close()

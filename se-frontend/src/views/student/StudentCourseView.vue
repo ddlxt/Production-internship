@@ -27,16 +27,6 @@
                             {{ asm.title }}
                         </h3>
 
-                        <!-- 作业描述（如果有） -->
-                        <p 
-                            v-if="asm.description" 
-                            class="text-sm text-gray-700 flex-1 overflow-hidden leading-tight"
-                            style="display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; max-height: 4.5rem;"
-                        >
-                            {{ asm.description }}
-                        </p>
-                        <p v-else class="text-sm text-gray-500 flex-1">暂无作业描述</p>
-
                         <!-- 截止日期 -->
                         <div class="text-xs text-gray-600">
                             <p>截止日期：{{ asm.dueDate || '无' }}</p>

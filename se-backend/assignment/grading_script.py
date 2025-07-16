@@ -11,7 +11,7 @@ import random
 
 # --- 配置 ---
 MOCK_AI = False  # True 会模拟 AI 返回，False 会尝试调用真实 API
-os.environ["OPENAI_API_KEY"] = "sk-kBpsE8u98W1A1FBeE6780211E5Fd42D8B4A8E9A74346D82c" # 如果使用真实 OpenAI API
+os.environ["OPENAI_API_KEY"] = "sk-OF712NvP9fG3nZgSCwxf7B3Ipus3Ij3GOasQSDe9btfpkVra" # 如果使用真实 OpenAI API
 
 DB_CONFIG_FILE = "db_config.json" # 新增：MySQL配置文件名
 
@@ -101,6 +101,23 @@ def remove_question_prefix(text):
     """去除题干、正确答案和学生答案中的题号前缀，如(1)，(2)等"""
     return re.sub(r"^\(\d+\)", "", text)  # 使用正则表达式去除题号
 
+def extract_answers_by_prefix(text: str) -> list[str]:
+    """
+    按照题号前缀 (1)、(2)... 提取答案块，支持多行或空行。
+    返回每题对应的文本列表。
+    """
+    # 正则匹配所有题号前缀的位置
+    matches = list(re.finditer(r"\(\d+\)", text))
+    results = []
+
+    for i in range(len(matches)):
+        start = matches[i].end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        answer_text = text[start:end].strip()
+        results.append(answer_text)
+
+    return results
+
 def call_ai_grader(question_content, answer_content, student_submission_content):
     """
     调用AI进行逐题评分，并在本地按题号分点校验，每题返回独立评分和评语。
@@ -108,9 +125,9 @@ def call_ai_grader(question_content, answer_content, student_submission_content)
     overall_score 由本地 per_question 平均计算获得，以保证与 per_question 一致。
     """
     # 1. 本地逐题校验并生成子评分与评语
-    correct_answers = answer_content.splitlines()
+    correct_answers = extract_answers_by_prefix(answer_content)
     student_text = "\n".join(item.get("text", "") for item in student_submission_content if item.get("type") == "text")
-    student_answers = student_text.splitlines()
+    student_answers = extract_answers_by_prefix(student_text)
 
     per_question = []
     for i, correct in enumerate(correct_answers):
@@ -151,7 +168,7 @@ def call_ai_grader(question_content, answer_content, student_submission_content)
         try:
             client = OpenAI(
                 api_key=os.environ.get("OPENAI_API_KEY"),
-                base_url="https://api.mctools.online/v1"
+                base_url="https://api.openai-proxy.org/v1"
             )
             system_prompt = (
                 "You are an AI assistant tasked with grading student homework."
@@ -230,7 +247,7 @@ def process_grading_task(homework_path_str: str):
         save_grade_to_db(db_conn, course_id, assign_no, email, ov, cm)
 
         # 收集该学生错题
-        lines = text.splitlines()
+        lines = extract_answers_by_prefix(text)
         wrong_list = []
         for item in result["per_question"]:
             if item["score"] < 60:
@@ -242,7 +259,7 @@ def process_grading_task(homework_path_str: str):
                     "question_no": item["question"],
                     "question_text": qtxt,
                     "correct_answer": remove_question_prefix(answers[idx]) if idx < len(answers) else "",
-                    "student_answer": remove_question_prefix(answers[idx]) if idx < len(lines) else "",
+                    "student_answer": remove_question_prefix(lines[idx]) if idx < len(lines) else "",
                     "score": item["score"]
                 })
         # 写该学生错题文件
