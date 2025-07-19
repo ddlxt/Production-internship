@@ -1,0 +1,23 @@
+[
+    {
+        "question_no": 1,
+        "question_text": "请计算5!的值",
+        "correct_answer": "120",
+        "student_answer": "1",
+        "score": 0
+    },
+    {
+        "question_no": 2,
+        "question_text": "请计算函数f(x)=x^2 + x + 1在x=1处的导函数",
+        "correct_answer": "3",
+        "student_answer": "2",
+        "score": 0
+    },
+    {
+        "question_no": 3,
+        "question_text": "请计算函数f(x)=x^2 + x + 1在区间[0,1]上的积分",
+        "correct_answer": "11/6",
+        "student_answer": "3",
+        "score": 0
+    }
+]

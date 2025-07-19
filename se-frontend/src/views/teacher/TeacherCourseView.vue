@@ -22,16 +22,6 @@
                     布置作业
                 </button>
 
-                <!-- AI 学习助手入口 -->
-                <a
-                    :href="llmsUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="bg-emerald-600/90 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition shadow-card"
-                >
-                    大模型
-                </a>
-
                 <button @click="logout" class="text-red-600 hover:underline text-sm whitespace-nowrap">
                     退出登录
                 </button>

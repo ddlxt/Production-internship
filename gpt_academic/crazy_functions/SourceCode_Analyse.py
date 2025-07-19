@@ -109,281 +109,281 @@ def make_diagram(this_iteration_files, result, this_iteration_history_feed):
     from crazy_functions.diagram_fns.file_tree import build_file_tree_mermaid_diagram
     return build_file_tree_mermaid_diagram(this_iteration_history_feed[0::2], this_iteration_history_feed[1::2], "项目示意图")
 
-@CatchException
-def 解析项目本身(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob
-    file_manifest = [f for f in glob.glob('./*.py')] + \
-                    [f for f in glob.glob('./*/*.py')]
-    project_folder = './'
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何python文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个Python项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.py', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何python文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个Matlab项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析Matlab项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.m', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析Matlab项目: {txt}", b = f"找不到任何`.m`源文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个C项目的头文件(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.h', recursive=True)]  + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.hpp', recursive=True)] #+ \
-                    # [f for f in glob.glob(f'{project_folder}/**/*.c', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何.h头文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个C项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.h', recursive=True)]  + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.cpp', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.hpp', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.c', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何.h头文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-
-@CatchException
-def 解析一个Java项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []  # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.java', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.jar', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.xml', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.sh', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何java文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-
-@CatchException
-def 解析一个前端项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []  # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.ts', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.tsx', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.json', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.js', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.vue', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.less', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.sass', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.wxml', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.wxss', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.css', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.jsx', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何前端相关文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-
-@CatchException
-def 解析一个Golang项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []  # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.go', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/go.mod', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/go.sum', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/go.work', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何golang文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个Rust项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []  # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.rs', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.toml', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.lock', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何golang文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-@CatchException
-def 解析一个Lua项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.lua', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.xml', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.json', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.toml', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何lua文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-
-@CatchException
-def 解析一个CSharp项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    history = []    # 清空历史，以免输入溢出
-    import glob, os
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.cs', recursive=True)] + \
-                    [f for f in glob.glob(f'{project_folder}/**/*.csproj', recursive=True)]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何CSharp文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
-
-
-@CatchException
-def 解析任意code项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
-    txt_pattern = plugin_kwargs.get("advanced_arg")
-    txt_pattern = txt_pattern.replace("，", ",")
-    # 将要匹配的模式(例如: *.c, *.cpp, *.py, config.toml)
-    pattern_include = [_.lstrip(" ,").rstrip(" ,") for _ in txt_pattern.split(",") if _ != "" and not _.strip().startswith("^")]
-    if not pattern_include: pattern_include = ["*"] # 不输入即全部匹配
-    # 将要忽略匹配的文件后缀(例如: ^*.c, ^*.cpp, ^*.py)
-    pattern_except_suffix = [_.lstrip(" ^*.,").rstrip(" ,") for _ in txt_pattern.split(" ") if _ != "" and _.strip().startswith("^*.")]
-    pattern_except_suffix += ['zip', 'rar', '7z', 'tar', 'gz'] # 避免解析压缩文件
-    # 将要忽略匹配的文件名(例如: ^README.md)
-    pattern_except_name = [_.lstrip(" ^*,").rstrip(" ,").replace(".", r"\.") # 移除左边通配符，移除右侧逗号，转义点号
-                           for _ in txt_pattern.split(" ") # 以空格分割
-                           if (_ != "" and _.strip().startswith("^") and not _.strip().startswith("^*."))   # ^开始，但不是^*.开始
-                           ]
-    # 生成正则表达式
-    pattern_except = r'/[^/]+\.(' + "|".join(pattern_except_suffix) + ')$'
-    pattern_except += '|/(' + "|".join(pattern_except_name) + ')$' if pattern_except_name != [] else ''
-
-    history.clear()
-    import glob, os, re
-    if os.path.exists(txt):
-        project_folder = txt
-        validate_path_safety(project_folder, chatbot.get_user())
-    else:
-        if txt == "": txt = '空空如也的输入栏'
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    # 若上传压缩文件, 先寻找到解压的文件夹路径, 从而避免解析压缩文件
-    maybe_dir = [f for f in glob.glob(f'{project_folder}/*') if os.path.isdir(f)]
-    if len(maybe_dir)>0 and maybe_dir[0].endswith('.extract'):
-        extract_folder_path = maybe_dir[0]
-    else:
-        extract_folder_path = project_folder
-    # 按输入的匹配模式寻找上传的非压缩文件和已解压的文件
-    file_manifest = [f for pattern in pattern_include for f in glob.glob(f'{extract_folder_path}/**/{pattern}', recursive=True) if "" != extract_folder_path and \
-                      os.path.isfile(f) and (not re.search(pattern_except, f) or pattern.endswith('.' + re.search(pattern_except, f).group().split('.')[-1]))]
-    if len(file_manifest) == 0:
-        report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何文件: {txt}")
-        yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
-        return
-    yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+# @CatchException
+# def 解析项目本身(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob
+#     file_manifest = [f for f in glob.glob('./*.py')] + \
+#                     [f for f in glob.glob('./*/*.py')]
+#     project_folder = './'
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何python文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个Python项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.py', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何python文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个Matlab项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析Matlab项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.m', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析Matlab项目: {txt}", b = f"找不到任何`.m`源文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个C项目的头文件(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.h', recursive=True)]  + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.hpp', recursive=True)] #+ \
+#                     # [f for f in glob.glob(f'{project_folder}/**/*.c', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何.h头文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个C项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.h', recursive=True)]  + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.cpp', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.hpp', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.c', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何.h头文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+#
+# @CatchException
+# def 解析一个Java项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []  # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.java', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.jar', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.xml', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.sh', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何java文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+#
+# @CatchException
+# def 解析一个前端项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []  # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.ts', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.tsx', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.json', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.js', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.vue', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.less', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.sass', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.wxml', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.wxss', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.css', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.jsx', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何前端相关文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+#
+# @CatchException
+# def 解析一个Golang项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []  # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.go', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/go.mod', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/go.sum', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/go.work', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何golang文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个Rust项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []  # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.rs', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.toml', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.lock', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a=f"解析项目: {txt}", b=f"找不到任何golang文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+# @CatchException
+# def 解析一个Lua项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.lua', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.xml', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.json', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.toml', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何lua文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+#
+# @CatchException
+# def 解析一个CSharp项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     history = []    # 清空历史，以免输入溢出
+#     import glob, os
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     file_manifest = [f for f in glob.glob(f'{project_folder}/**/*.cs', recursive=True)] + \
+#                     [f for f in glob.glob(f'{project_folder}/**/*.csproj', recursive=True)]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何CSharp文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)
+#
+#
+# @CatchException
+# def 解析任意code项目(txt, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt, user_request):
+#     txt_pattern = plugin_kwargs.get("advanced_arg")
+#     txt_pattern = txt_pattern.replace("，", ",")
+#     # 将要匹配的模式(例如: *.c, *.cpp, *.py, config.toml)
+#     pattern_include = [_.lstrip(" ,").rstrip(" ,") for _ in txt_pattern.split(",") if _ != "" and not _.strip().startswith("^")]
+#     if not pattern_include: pattern_include = ["*"] # 不输入即全部匹配
+#     # 将要忽略匹配的文件后缀(例如: ^*.c, ^*.cpp, ^*.py)
+#     pattern_except_suffix = [_.lstrip(" ^*.,").rstrip(" ,") for _ in txt_pattern.split(" ") if _ != "" and _.strip().startswith("^*.")]
+#     pattern_except_suffix += ['zip', 'rar', '7z', 'tar', 'gz'] # 避免解析压缩文件
+#     # 将要忽略匹配的文件名(例如: ^README.md)
+#     pattern_except_name = [_.lstrip(" ^*,").rstrip(" ,").replace(".", r"\.") # 移除左边通配符，移除右侧逗号，转义点号
+#                            for _ in txt_pattern.split(" ") # 以空格分割
+#                            if (_ != "" and _.strip().startswith("^") and not _.strip().startswith("^*."))   # ^开始，但不是^*.开始
+#                            ]
+#     # 生成正则表达式
+#     pattern_except = r'/[^/]+\.(' + "|".join(pattern_except_suffix) + ')$'
+#     pattern_except += '|/(' + "|".join(pattern_except_name) + ')$' if pattern_except_name != [] else ''
+#
+#     history.clear()
+#     import glob, os, re
+#     if os.path.exists(txt):
+#         project_folder = txt
+#         validate_path_safety(project_folder, chatbot.get_user())
+#     else:
+#         if txt == "": txt = '空空如也的输入栏'
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到本地项目或无权访问: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     # 若上传压缩文件, 先寻找到解压的文件夹路径, 从而避免解析压缩文件
+#     maybe_dir = [f for f in glob.glob(f'{project_folder}/*') if os.path.isdir(f)]
+#     if len(maybe_dir)>0 and maybe_dir[0].endswith('.extract'):
+#         extract_folder_path = maybe_dir[0]
+#     else:
+#         extract_folder_path = project_folder
+#     # 按输入的匹配模式寻找上传的非压缩文件和已解压的文件
+#     file_manifest = [f for pattern in pattern_include for f in glob.glob(f'{extract_folder_path}/**/{pattern}', recursive=True) if "" != extract_folder_path and \
+#                       os.path.isfile(f) and (not re.search(pattern_except, f) or pattern.endswith('.' + re.search(pattern_except, f).group().split('.')[-1]))]
+#     if len(file_manifest) == 0:
+#         report_exception(chatbot, history, a = f"解析项目: {txt}", b = f"找不到任何文件: {txt}")
+#         yield from update_ui(chatbot=chatbot, history=history) # 刷新界面
+#         return
+#     yield from 解析源代码新(file_manifest, project_folder, llm_kwargs, plugin_kwargs, chatbot, history, system_prompt)

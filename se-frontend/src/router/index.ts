@@ -50,7 +50,6 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/student/StudentAssignmentView.vue'),
         meta: { requiresAuth: true, role: 'student' },
     },
-
     /* === 教师端 === */
     {
         path: '/teacher/home',

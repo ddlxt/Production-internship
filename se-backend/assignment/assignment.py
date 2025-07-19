@@ -14,7 +14,8 @@ from .assignment_ops import (
     create_assignment_api, get_student_assignment_api, get_teacher_assignment_api,
     grade_submission_api, submit_assignment_api, 
     teacher_assignment_summary_api, auto_grade_assignment_api,
-    get_student_assignment_detail_api, submit_assignment_rest_api
+    get_student_assignment_detail_api, submit_assignment_rest_api, format_wrong_display_api,
+    generate_assignment_api, relative_display_api, answer_display_api
 )
 from .file_ops import upload_file_api, get_file_api
 from .student_management import get_course_students_api, search_students_api, batch_enroll_students_api
@@ -58,6 +59,16 @@ def init_app(app: Flask):
                      view_func=grade_submission_api, methods=["POST"])
     app.add_url_rule("/api/student/assignment/submit", endpoint="submit_assignment", 
                      view_func=submit_assignment_api, methods=["POST"])
+    app.add_url_rule("/api/student/assignment/<assignment_id>/homework", endpoint="format_wrong_display",
+                     view_func=format_wrong_display_api, methods=["GET"])
+    app.add_url_rule("/api/student/assignment/<assignment_id>/similar", endpoint="generate_assignment",
+                     view_func=generate_assignment_api, methods=["POST"])
+    app.add_url_rule("/api/student/assignment/<assignment_id>/showQuestions", endpoint="relative_display",
+                     view_func=relative_display_api, methods=["GET"])
+    app.add_url_rule("/api/student/assignment/<assignment_id>/answers", endpoint="answer_display",
+                     view_func=answer_display_api, methods=["GET"])
+
+
     # 新增的REST风格提交端点
     app.add_url_rule("/api/student/assignment/<assignment_id>/submit", endpoint="submit_assignment_rest", 
                      view_func=submit_assignment_rest_api, methods=["POST"])

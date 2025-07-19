@@ -64,9 +64,9 @@ def main():
     if authenticated_user_info:
         username, role, email = authenticated_user_info.split('|')
         user_display = f'👤 <span style="color: #28a745;">{username}</span> ({role})'
-        title_html = f"<h1 align=\"center\">软工智能助手 {get_current_version()}</h1>{theme_declaration}<div align=\"center\" style=\"margin: 10px; padding: 10px; background: rgba(40, 167, 69, 0.1); border-radius: 5px;\">已登录用户: {user_display}</div>"
+        title_html = f"<h1 align=\"center\">智能作业辅导助手 {get_current_version()}</h1>{theme_declaration}<div align=\"center\" style=\"margin: 10px; padding: 10px; background: rgba(40, 167, 69, 0.1); border-radius: 5px;\">已登录用户: {user_display}</div>"
     else:
-        title_html = f"<h1 align=\"center\">软工智能助手 {get_current_version()}</h1>{theme_declaration}"
+        title_html = f"<h1 align=\"center\">智能作业辅导助手 {get_current_version()}</h1>{theme_declaration}"
 
 
     # 一些普通功能模块
@@ -102,7 +102,7 @@ def main():
     customize_btns = {}
     predefined_btns = {}
     from shared_utils.cookie_manager import make_cookie_cache, make_history_cache
-    with gr.Blocks(title="软件工程智能助手", theme=set_theme, analytics_enabled=False, css=advanced_css) as app_block:
+    with gr.Blocks(title="智能作业辅导助手", theme=set_theme, analytics_enabled=False, css=advanced_css) as app_block:
         gr.HTML(title_html)
         secret_css = gr.Textbox(visible=False, elem_id="secret_css")
         register_advanced_plugin_init_arr = ""

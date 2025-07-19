@@ -25,16 +25,6 @@
                     学生管理
                 </button>
 
-                <!-- AI 学习助手入口（携带 useremail / role / token） -->
-                <a
-                    :href="llmUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="bg-emerald-600/90 text-white px-4 py-2 rounded-lg text-sm hover:bg-emerald-700 transition shadow-card"
-                >
-                    大模型助手
-                </a>
-
                 <!-- 退出登录 -->
                 <button
                     @click="logout"

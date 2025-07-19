@@ -50,7 +50,7 @@ def handle_login(useremail: str, password: str, role: str, remember_me: bool = F
             "login_time": time.time()
         }
         
-        welcome_msg = f"欢迎，{user_info['username']}！您已成功登录到软工智能助手。"
+        welcome_msg = f"欢迎，{user_info['username']}！您已成功登录到智能作业辅导助手。"
         logger.info(f"用户登录成功: {useremail} ({role})")
         return welcome_msg, user_state, True
     else:
@@ -164,7 +164,7 @@ def create_login_interface():
         user_state = gr.State({})
         
         # 登录状态显示
-        login_status = gr.Markdown("请登录以使用软工智能助手", elem_id="login-status")
+        login_status = gr.Markdown("请登录以使用智能作业辅导助手", elem_id="login-status")
         
         with gr.Tab("登录", elem_id="login-tab"):
             with gr.Row():
@@ -255,7 +255,7 @@ def create_login_interface():
         def update_logout_ui(message, user_state_new, success):
             return {
                 login_message: gr.update(value=f"ℹ️ {message}"),
-                login_status: gr.update(value="请登录以使用软工智能助手"),
+                login_status: gr.update(value="请登录以使用智能作业辅导助手"),
                 login_btn: gr.update(visible=True),
                 logout_btn: gr.update(visible=False),
                 user_state: user_state_new

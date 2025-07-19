@@ -264,7 +264,7 @@ function loadTipsMessage(result) {
     });
 
     window.showWelcomeMessage = function(result) {
-        showMessage('欢迎使用智能软工课设助手', 6000);
+        showMessage('欢迎使用智能作业辅导助手', 6000);
     }; if (live2d_settings.showWelcomeMessage) showWelcomeMessage(result);
 
     var waifu_tips = result.waifu;
